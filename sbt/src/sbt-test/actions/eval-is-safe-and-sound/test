@@ -1,8 +1,0 @@
-> compile
-> saveNumConfigClasses
-$ copy-file changes/extras.sbt extras.sbt
-> reload
-> checkDifferentConfigClasses
-$ delete extras.sbt
-> reload
-> checkNumConfigClasses

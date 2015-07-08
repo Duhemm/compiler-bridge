@@ -1,9 +1,0 @@
-> check
-
-> check-pom
-
-$ delete build.sbt
-$ copy-file changes/non-mergeable.sbt build.sbt
-
-> reload
-> check

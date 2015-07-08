@@ -1,2 +1,0 @@
-alias info= set logLevel := Level.Info
-alias cl= ;clean

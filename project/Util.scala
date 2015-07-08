@@ -74,8 +74,8 @@ object Util {
   def versionLine(version: String): String = "version=" + version
   def containsVersion(propFile: File, version: String): Boolean = IO.read(propFile).contains(versionLine(version))
 
-  def binID = "compiler-interface-bin"
-  def srcID = "compiler-interface-src"
+  def binID = "compiler-bridge-bin"
+  def srcID = "compiler-bridge-src"
 
   def publishPomSettings: Seq[Setting[_]] = Seq(
     publishArtifact in makePom := false,

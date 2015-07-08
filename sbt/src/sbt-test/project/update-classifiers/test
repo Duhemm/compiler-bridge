@@ -1,3 +1,0 @@
-# Should succeed, and not attempt to get classifiers for b (which is a dep of
-# a)
-> a/updateClassifiers

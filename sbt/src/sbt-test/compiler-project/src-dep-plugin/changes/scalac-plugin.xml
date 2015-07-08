@@ -1,4 +1,0 @@
-<plugin>
-	<name>demo</name>
-	<classname>demo.DemoPlugin</classname>
-</plugin>

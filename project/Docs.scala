@@ -7,7 +7,6 @@ import SbtGhPages.{ ghpages, GhPagesKeys => ghkeys }
 import SbtGit.{ git, GitKeys }
 import sbtsite.SphinxSupport
 import SiteKeys.{ makeSite, siteMappings }
-import Sxr.sxr
 import SiteMap.Entry
 
 object Docs {
@@ -17,7 +16,6 @@ object Docs {
   def settings: Seq[Setting[_]] =
     site.settings ++
       site.includeScaladoc("api") ++
-      siteIncludeSxr("sxr") ++
       ghPagesSettings
 
   def ghPagesSettings = ghpages.settings ++ Seq(
@@ -33,11 +31,6 @@ object Docs {
     val status = if (isSnapshot.value) "snapshot" else "public"
     Path.userHome / ".sbt" / "ghpages" / status / organization.value / name.value
   }
-
-  def siteIncludeSxr(prefix: String) = Seq(
-    mappings in sxr <<= sxr.map(dir => Path.allSubpaths(dir).toSeq),
-    site.addMappingsToSiteDir(mappings in sxr, prefix)
-  )
 
   def synchLocalImpl = (ghkeys.privateMappings, ghkeys.updatedRepository, version, streams) map {
     (mappings, repo, v, s) =>

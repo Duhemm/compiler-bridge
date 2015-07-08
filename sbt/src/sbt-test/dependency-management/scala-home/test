@@ -1,4 +1,0 @@
-> makeHome
-$ copy-file changes/real-build.sbt build.sbt
-> reload
-> checkUpdate

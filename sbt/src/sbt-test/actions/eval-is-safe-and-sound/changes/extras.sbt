@@ -1,3 +1,0 @@
-organization := "more"
-
-version := "settings"
