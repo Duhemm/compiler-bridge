@@ -140,7 +140,8 @@ lazy val processProj = (project in utilPath / "process").
     baseSettings,
     crossBuildingSettings,
     name := "Process",
-    libraryDependencies ++= scalaXml.value
+    libraryDependencies ++= scalaXml.value,
+    publishArtifact in Test := true
   )
 
 // Path, IO (formerly FileUtilities), NameFilter and other I/O utility classes
@@ -161,7 +162,8 @@ lazy val logProj = (project in utilPath / "log").
     testedBaseSettings,
     crossBuildingSettings,
     name := "Logging",
-    libraryDependencies += jline
+    libraryDependencies += jline,
+    publishArtifact in Test := true
   ) 
 
 // Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
