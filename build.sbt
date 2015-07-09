@@ -10,16 +10,7 @@ import StringUtilities.normalize
 // but can be shared across the multi projects.
 def buildLevelSettings: Seq[Setting[_]] = Seq(
   organization in ThisBuild := "org.scala-sbt",
-  version in ThisBuild := "0.13.9-SNAPSHOT",
-  // bintrayOrganization in ThisBuild := None,
-  // bintrayRepository in ThisBuild := "test-test-test",
-  bintrayOrganization in ThisBuild :=  {
-    if ((publishStatus in ThisBuild).value == "releases") Some("typesafe")
-    else Some("sbt")
-  },
-  bintrayRepository in ThisBuild := s"ivy-${(publishStatus in ThisBuild).value}",
-  bintrayPackage in ThisBuild := "sbt",
-  bintrayReleaseOnPublish in ThisBuild := false
+  version in ThisBuild := "0.13.9-SNAPSHOT"
 )
 
 def commonSettings: Seq[Setting[_]] = Seq(
@@ -32,13 +23,13 @@ def commonSettings: Seq[Setting[_]] = Seq(
   concurrentRestrictions in Global += Util.testExclusiveRestriction,
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1"),
   javacOptions in compile ++= Seq("-target", "6", "-source", "6", "-Xlint", "-Xlint:-serial"),
-  incOptions := incOptions.value.withNameHashing(true),
-  bintrayPackage := (bintrayPackage in ThisBuild).value,
-  bintrayRepository := (bintrayRepository in ThisBuild).value
+  incOptions := incOptions.value.withNameHashing(true)
 )
 
+// These settings allow us to create compiler-bridge_2.10, compiler-bridge_2.10.5,
+// and compiler-bridge_2.11.7
 def crossBuildingSettings: Seq[Setting[_]] = Seq(
-  crossScalaVersions := Seq("2.10.4", scala210, "2.11.6", "2.11.7"),
+  crossScalaVersions := Seq("2.10.4", scala210, "2.11.7"),
   crossVersion := {
     scalaVersion.value match {
       case "2.10.4" => CrossVersion.binary
@@ -77,16 +68,7 @@ lazy val interfaceProj = (project in file("interface")).
   settings(
     minimalSettings,
     javaOnlySettings,
-    crossScalaVersions := Seq("2.10.4", "2.11.5"),
-    // Stupid hack to force the project to create a "interface_2.10.5" and "interface"
-    // We shouldn't need "interface_2.10.5", but I can't get the sbt build to behave as I want to to.
-    crossVersion := {
-      scalaVersion.value match {
-        case "2.10.4" => CrossVersion.Disabled
-        case _        => CrossVersion.full
-      }
-    },
-    crossPaths := false,
+    crossBuildingSettings,
     name := "Interface",
     projectComponent,
     exportJars := true,
@@ -127,7 +109,6 @@ lazy val datatypeProj = (project in utilPath / "datatype").
 lazy val controlProj = (project in utilPath / "control").
   settings(
     baseSettings,
-    //Util.crossBuild,
     crossBuildingSettings,
     name := "Control",
     crossScalaVersions := Seq(scala210, scala211)
@@ -164,7 +145,7 @@ lazy val logProj = (project in utilPath / "log").
     name := "Logging",
     libraryDependencies += jline,
     publishArtifact in Test := true
-  ) 
+  )
 
 // Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
 //   Includes API and Analyzer phases that extract source API and relationships.
@@ -185,44 +166,35 @@ lazy val compilerBridgeProj = (project in compilePath / "bridge").
     javaOptions in Test += "-Xmx1G",
     artifact in (Compile, packageSrc) := {
       Artifact(srcID).copy(configurations = Compile :: Nil).extra("e:component" -> srcID)
-    }
-  )
-
-lazy val compilerBridgeSrcProj = (project in compilePath / "bridge-src").
-  dependsOn(interfaceProj % "provided", ioProj % "provided", logProj % "provided", /*launchProj % "provided",*/ apiProj % "provided").
-  settings(
-    scalaSource in Compile := compilePath.getAbsoluteFile / "bridge" / "src" / "main" / "scala",
-    libraryDependencies += scalaCompiler.value % "provided",
-    name := "Compiler bridge",
-    exportJars := true,
-    // we need to fork because in unit tests we set usejavacp = true which means
-    // we are expecting all of our dependencies to be on classpath so Scala compiler
-    // can use them while constructing its own classpath for compilation
-    fork in Test := true,
-    // needed because we fork tests and tests are ran in parallel so we have multiple Scala
-    // compiler instances that are memory hungry
-    javaOptions in Test += "-Xmx1G",
-    artifact in (Compile, packageSrc) := {
-      Artifact(srcID).copy(configurations = Compile :: Nil).extra("e:component" -> srcID)
     },
-    crossScalaVersions := Seq("2.10.5", "2.11.7", "2.11.6"),
-    crossVersion := {
-      scalaVersion.value match {
-        case "2.11.6" => CrossVersion.Disabled
-        case _        => CrossVersion.binary
-      }
-    },
-    crossPaths := true,
-    Release.javaVersionCheckSettings
+    commands += publishBridgeSource
   )
 
 lazy val publishAll = TaskKey[Unit]("publish-all")
+
+lazy val publishBridgeBinary = Command.command("publishBridgeBinary") { state =>
+  "+ publishLocal" ::
+    state
+}
+
+lazy val publishBridgeSource = Command.command("publishBridgeSource") { state =>
+  "set crossVersion in compilerBridgeProj := CrossVersion.Disabled" ::
+    "set publishArtifact in (Compile, packageBin) in compilerBridgeProj := false" ::
+    "compilerBridgeProj/publishLocal" ::
+    state
+}
+
+lazy val publishBridge = Command.command("publishBridge") { state =>
+  "publishBridgeBinary" ::
+    "publishBridgeSource" ::
+    state
+}
 
 lazy val myProvided = config("provided") intransitive
 
 def allProjects = Seq(interfaceProj, apiProj,
   controlProj, processProj, ioProj, logProj,
-  compilerBridgeProj, compilerBridgeSrcProj)
+  compilerBridgeProj)
 
 def projectsWithMyProvided = allProjects.map(p => p.copy(configurations = (p.configurations.filter(_ != Provided)) :+ myProvided))
 lazy val nonRoots = projectsWithMyProvided.map(p => LocalProject(p.id))
@@ -246,26 +218,9 @@ def fullDocSettings = Util.baseScalacOptions ++ Docs.settings ++ Seq(
 )
 
 /* Nested Projproject paths */
-def sbtPath    = file("sbt")
-def cachePath  = file("cache")
-def tasksPath  = file("tasks")
-def launchPath = file("launch")
-def utilPath   = file("util")
+def utilPath    = file("util")
 def compilePath = file("compile")
-def mainPath   = file("main")
 
-def precompiledSettings = Seq(
-  artifact in packageBin <<= (appConfiguration, scalaVersion) { (app, sv) =>
-    val launcher = app.provider.scalaProvider.launcher
-    val bincID = binID + "_" + ScalaInstance(sv, launcher).actualVersion
-    Artifact(binID) extra ("e:component" -> bincID)
-  },
-  target <<= (target, scalaVersion) { (base, sv) => base / ("precompiled_" + sv) },
-  scalacOptions := Nil,
-  ivyScala ~= { _.map(_.copy(checkExplicit = false, overrideScalaVersion = false)) },
-  exportedProducts in Compile := Nil,
-  libraryDependencies += scalaCompiler.value % "provided"
-)
 
 lazy val safeUnitTests = taskKey[Unit]("Known working tests (for both 2.10 and 2.11)")
 lazy val safeProjects: ScopeFilter = ScopeFilter(
@@ -349,5 +304,8 @@ def customCommands: Seq[Setting[_]] = Seq(
       "publish" ::
       "bintrayRelease" ::
       state
-  }
+  },
+  commands += publishBridgeBinary,
+  commands += publishBridgeSource,
+  commands += publishBridge
 )
