@@ -68,7 +68,7 @@ lazy val interfaceProj = (project in file("interface")).
   settings(
     minimalSettings,
     javaOnlySettings,
-    crossBuildingSettings,
+    crossVersion := CrossVersion.Disabled,
     name := "Interface",
     projectComponent,
     exportJars := true,
